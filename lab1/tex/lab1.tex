@@ -1,0 +1,136 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,textcomp,amssymb,geometry,graphicx,enumerate,float}
+
+\def\Name{Jeff Lievense}  % Your name
+\def\HW{1} % Homework number
+
+\title{Astronomy 121 -- Spring 2014}
+\author{\Name}
+\markboth{Astronomy 121 -- Spring 2014, Lab \HW, \Name}{Astronomy 121 -- Spring 2014, Lab \HW, \Name}
+\pagestyle{myheadings}
+
+\begin{document}
+\maketitle
+\begin{center}
+{\LARGE
+{\bf Lab 1 \\~\\
+
+Impedance, Filters, Amplifiers, and Noise
+}
+}
+\end{center}
+
+\newpage
+\section{Abstract}
+
+In this report, we develop the necessary theory and tools for designing and implementing radio receiver circuits.
+
+\section{Introduction}
+
+\section{Theory}
+
+In this section, we describe the tools and procedures used in the development of our circuit.
+
+    \subsection{Frequency Modulation}
+    We are interested in building a circuit which can recover message signals that have been transmitted via \emph{frequency modulation} (FM). Modulation refers to the message signal being encoded in a very high-frequency \emph{carrier signal} which can travel through free space much farther than the message signal would be able to travel by itself. Frequency modulation means the message is encoded in the frequency of the carrier signal (as opposed to \emph{amplitude modulation} (AM), in which the message signal is multiplied by the carrier signal). Mathematically, we can model an FM signal as
+    \begin{flalign*}
+        y(t) &= cos(\omega_c t  + \omega_{\Delta} \int_{0}^t m(t) dt),
+    \end{flalign*}
+    where $\omega_c$ is the frequency of the carrier signal, $\omega_{\Delta}$ is the frequency deviation, and $m(t)$ is the message signal to be transmitted. $\omega_{\Delta}$ is a design parameter that essentially maps changes in amplitude of the message signal into changes in frequency of the modulated carrier signal. From this definition, we see that an FM signal can be converted to an AM signal via differentiation, that is
+    \begin{flalign*}
+        \frac{d}{dt}y(t) &= -(\omega_c + \omega_{\Delta}m(t))sin(\omega_c t + \omega_{\Delta} \int_0^t m(t)dt).
+    \end{flalign*}
+    From here, the message signal $m(t)$ can be recovered via AM demodulation, which will be discussed in a later section. With this in mind, we will now develop the necessary circuit theory to implement an FM demodulator.
+
+    \subsection{Filters}
+    Filtering is the process of eliminating certain frequencies from a signal. When dealing with audio signals such as those transmitted via FM, we often use filters to remove inaudible frequencies, i.e. those that carry no information which can be heard by humans. We will also use filters to approximate differentiation in demodulation, which will be discussed in a later section.
+
+        \subsubsection{Voltage Division}
+        Since a filter is used to eliminate certain frequencies, it must of course contain some components whose functionality is frequency-dependent. However, we must first understand the manner in which electronic components interact with each other. Consider the resistive \emph{voltage divider} in Figure x. If some voltage $v_{in}$ is applied at the leftmost terminal, what would the resulting voltage $v_{out}$ at the rightmost terminal be as a function of the resistances in the circuit? We can use Ohm's Law to determine the current $I$ flowing through both resistors and again to determine the voltage drop across $R_2$, which is $v_{out}$. Thus we have
+        \begin{flalign*}
+            v_{in} &= I\cdot (R_1 + R_2) \\
+            I &= \frac{v_{in}}{R_1 + R_2}
+        \end{flalign*}
+        and
+        \begin{flalign*}
+            v_{out} &= I\cdot R_2 \\
+            &= v_{in} \cdot \frac{R_2}{R_1 + R_2}.
+        \end{flalign*}
+        We will denote the quantity $\frac{R_2}{R_1 + R_2}$ as the \emph{voltage divider ratio}, as it will appear in many forms in our development of filters.
+
+        \subsubsection{Impedance}
+        To build frequency-dependent circuits, we must use components whose impedance is not purely real. We denote the \emph{impedance} of a component as $Z = R + jX$, where $\mathfrak{Re}(Z) = R$ is \emph{resistance} and $\mathfrak{Im}(Z) = X$ is \emph{reactance}. As seen above, the impedance of an ideal resistor is purely real, thus we can characterize a resistor by its resistance. Components such as ideal capacitors and inductors, however, have purely imaginary impedance. We will now derive these imaginary impedances via the Fourier Transform, which will allow us to see the frequency dependence of these components. \\
+        \\
+        Just as Ohm's Law describes the relationship between current and voltage across a resistor, there are similar expressions for capacitors and inductors. For a capacitor with capacitance $C$ and an inductor with inductance $L$, we have
+        \begin{flalign*}
+            I &= C\frac{dV}{dt} \\
+            V &= L\frac{dI}{dt}.
+        \end{flalign*}
+        Let $Z = \frac{\mathcal{F}\{V\}}{\mathcal{F}\{I\}}$ be the impedance of some component in the frequency domain, where $\mathcal{F}\{\cdot\}$ denotes the Fourier Transform. Recall that $\mathcal{F}\{\frac{d}{dt}x(t)\} = j\omega X(\omega)$, then we have
+        \begin{flalign*}
+            \mathcal{F}\{I\} &= C \mathcal{F}\{\frac{dV}{dt}\} \\
+            &= C\cdot j\omega \mathcal{F}\{V\} \\
+            Z_C &= \frac{1}{j\omega C} \\
+            \mathcal{F}\{V\} &= L\mathcal{F}\{\frac{dI}{dt}\} \\
+            &= L\cdot j\omega \mathcal{F}\{I\} \\
+            Z_L &= j\omega L.
+        \end{flalign*}
+        With this in mind, we can now revisit the voltage divider, but using reactive components instead of resistors. Consider the voltage divider in Figure x, where the components are arbitrary impedances. We denote the \emph{transfer function}, or \emph{frequency-dependent gain} of such a circuit to be $H(\omega) = \frac{\mathcal{F}\{v_{in}\}}{\mathcal{F}\{v_{out}\}}$. Returning to the voltage divider ratio from before and replacing resistances with impedances, we have $H(\omega) = \frac{Z_2}{Z_1 + Z_2}$.
+
+        \subsubsection{RC Filters}
+        Consider the case where $Z_1$ is a capacitor and $Z_2$ is a resistor. The transfer function for such a filter is
+        \begin{flalign*}
+            H(\omega) &= \frac{R}{\frac{1}{j\omega C} + R} \\
+            &= \frac{j\omega R C}{1 + j\omega R C}.
+        \end{flalign*}
+        We see that $\omega \to 0 \Rightarrow H(\omega) \to 0$ and $\omega \to \infty \Rightarrow H(\omega) \to 1$, therefore we denote this circuit as a \emph{high-pass filter} (HPF), that is, a filter that attenuates signals with low frequencies and passes those with high frequencies. To construct a \emph{low-pass filter} (LPF), that is, one which passes signals with high frequencies and attenuates those with low frequencies, we simply switch the order of the resistor and capacitor. Letting $Z_1 = R$ and $Z_2 = \frac{1}{j\omega C}$, we have
+        \begin{flalign*}
+            H(\omega) &= \frac{1}{j\omega C(R + \frac{1}{j\omega C})} \\
+            &= \frac{1}{1 + j\omega R C}.
+        \end{flalign*}
+        We see that $\omega \to 0 \Rightarrow H(\omega) \to 1$ and $\omega \to \infty \Rightarrow H(\omega) \to 0$, therefore this is indeed a low-pass filter. \\
+        \\
+        An important figure of merit in an RC filter is the \emph{cutoff frequency} $\omega_0$. We define the cutoff frequency to be the frequency at which the power gain $|H(\omega)|^2$ is reduced to half of its passband value $H_0$. That is, $H(\omega_0) = \frac{1}{\sqrt{2}}H_0$. For an RC filter (LPF or HPF), we see that $\omega_0 = \frac{1}{RC}$, where $RC$ is called the \emph{time constant} of the filter.
+
+        \subsubsection{LC Filters}
+        If we expand our library of components to include inductors, we can achieve different types of filters, such as \emph{band-pass} (BPF) and \emph{band-stop} (BSF) filters. A band-pass filter is a filter that passes all frequencies within a specified band and attenuates everything outside this band, and a band-stop filter does just the opposite. We can construct these filters via series and parallel combinations of capacitors and inductors. \\
+        \\
+        Consider the parallel combination in Figure x. Its transfer function is given by
+        \begin{flalign*}
+            H(\omega) &= \frac{1}{j\omega C + \frac{1}{j\omega L}} \\
+            &= \frac{j\omega L}{1 - \omega^2 L C}.
+        \end{flalign*}
+        From the plot of $H(\omega)$ vs. $\omega$ in Figure x, we see that this is indeed a band-pass filter. Similarly, consider the series combination in Figure x. Its transfer function is given by
+        \begin{flalign*}
+            H(\omega) &= j\omega L + \frac{1}{j\omega C} \\
+            &= 1 - \omega^2 L C.
+        \end{flalign*}
+        From the plot of $H(\omega)$ vs. $\omega$ in Figure x, we see that this is indeed a band-stop filter. Notice that, in both band-pass and band-stop filters, the filter behaves in an interesting manner when $\omega = \frac{1}{\sqrt{LC}}$. This is no coincidence! Just as we defined the cutoff frequency of an RC filter, we define $\omega_0 = \frac{1}{\sqrt{LC}}$ as the \emph{resonant frequency} of an LC filter. At this frequency, the reactances due to the capacitor and inductor are perfectly out of phase and they "cancel" each other out, yielding interesting results.
+        
+        \subsubsection{RLC Filters}
+        If we introduce resistance to our LC filters, we can define yet another important quantity. The \emph{quality factor} $Q$ describes the width of the passband or stopband in an RLC filter and is given by $Q = \omega_0 RC = \frac{f_0}{\Delta f_{3dB}}$, where $f_0 = 2\pi\omega_0$ and $\Delta f_{3dB}$ is the width of the passband or stopband.
+
+    \subsection{Diodes}
+    We are interested in recovering a nonnegative message signal from a modulated carrier signal. Since carrier signals are zero mean oscillations, we must have some way of ``rectifying'' the carrier signal so the message information can be extracted. We use \emph{diodes} to accomplish this. A diode is a semiconductor component which allows current to flow through it when the voltage drop across it is greater than some threshold, but does not allow current to flow through it otherwise. Since diodes are realized as p-n junctions, they are ``on'' (conducting) when in forward bias and ``off'' (not conducting) when in reverse bias. The aforementioned threshold voltage is thus the built-in potential of the p-n junction, which is usually around 600-700 millivolts. 
+    
+        \subsubsection{Envelope Detector}
+        A diode followed by a low-pass filter (see Figure x) can be used as an \emph{envelope detector}, if the filter's time constant is chosen correctly. The envelope of a modulated high-frequency carrier signal is the smooth curve which outlines extremes in its amplitude. In the case of AM, the envelope is exactly the desired message signal to be recovered. The diode's rectifying ability turns the modulated carrier signal into a ``choppy'' version of the nonnegative message signal, and the low-pass filter rejects the high-frequency carrier signal, leaving the message signal to be recovered.
+    
+    \subsection{Amplifiers}
+    In general, a received FM signal will have lost some of its energy in transmission, thus we must be able to amplify it. However, many transistor amplifiers have large output impedances. This is a problem because we are dealing with audio signals, which means there will most likely be a speaker involved. Speakers have very low impedance, so cascading a high output impedance amplifier with a speaker will result in a highly attenuated signal being seen by the speaker. This can be seen from the voltage divider ratio -- if $R_1$ is large and $R_2$ is small, the input signal is attenuated. So, in addition to providing amplification, we must also take into consideration the output impedance of our amplifiers.
+
+        \subsubsection{Gain Stage}
+        To provide gain, we use the \emph{common emitter} amplifier topology (See Figure x). With resistive emitter degeneration, this amplifier has DC gain $A_{DC} = \frac{g_m R_C}{1 + g_m R_E}$. Placing a large capacitor in parallel with the degeneration resistor gives a high frequency gain of $A_v = g_m R_C$, because the capacitor shorts out the resistor at high frequencies.
+        
+        \subsubsection{Follower}
+        To match impedance, we cascade the common emitter with a \emph{common collector}, or \emph{emitter follower} (See Figure x). An amplifier with this topology has gain $A_v = \frac{g_m R_E}{1 + g_m R_E} \approx 1$, which means it acts as a buffer. Its output impedance is roughly $R_o \approx \frac{1}{g_m} \parallel R_E$, which is designed to be comparable to the low impedance of the load (speaker) in order to avoid loading effects. If we did not follow the common emitter with the emitter follower, the output impedance would be roughly $R_o \approx R_C$, in which case the signal seen by the speaker would be attenuated by a factor of $\frac{1}{R_C}$, hence the name emitter \emph{follower}.
+
+\section{Methods}
+
+\section{Results \& Discussion}
+
+\section{Conclusion}
+
+\section{Acknowledgements}
+
+\end{document}
