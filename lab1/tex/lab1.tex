@@ -106,22 +106,22 @@ In this section, we describe the tools and procedures used in the development of
             &= 1 - \omega^2 L C.
         \end{flalign*}
         From the plot of $H(\omega)$ vs. $\omega$ in Figure x, we see that this is indeed a band-stop filter. Notice that, in both band-pass and band-stop filters, the filter behaves in an interesting manner when $\omega = \frac{1}{\sqrt{LC}}$. This is no coincidence! Just as we defined the cutoff frequency of an RC filter, we define $\omega_0 = \frac{1}{\sqrt{LC}}$ as the \emph{resonant frequency} of an LC filter. At this frequency, the reactances due to the capacitor and inductor are perfectly out of phase and they "cancel" each other out, yielding interesting results.
-        
+
         \subsubsection{RLC Filters}
         If we introduce resistance to our LC filters, we can define yet another important quantity. The \emph{quality factor} $Q$ describes the width of the passband or stopband in an RLC filter and is given by $Q = \omega_0 RC = \frac{f_0}{\Delta f_{3dB}}$, where $f_0 = 2\pi\omega_0$ and $\Delta f_{3dB}$ is the width of the passband or stopband.
 
     \subsection{Diodes}
-    We are interested in recovering a nonnegative message signal from a modulated carrier signal. Since carrier signals are zero mean oscillations, we must have some way of ``rectifying'' the carrier signal so the message information can be extracted. We use \emph{diodes} to accomplish this. A diode is a semiconductor component which allows current to flow through it when the voltage drop across it is greater than some threshold, but does not allow current to flow through it otherwise. Since diodes are realized as p-n junctions, they are ``on'' (conducting) when in forward bias and ``off'' (not conducting) when in reverse bias. The aforementioned threshold voltage is thus the built-in potential of the p-n junction, which is usually around 600-700 millivolts. 
-    
+    We are interested in recovering a nonnegative message signal from a modulated carrier signal. Since carrier signals are zero mean oscillations, we must have some way of ``rectifying'' the carrier signal so the message information can be extracted. We use \emph{diodes} to accomplish this. A diode is a semiconductor component which allows current to flow through it when the voltage drop across it is greater than some threshold, but does not allow current to flow through it otherwise. Since diodes are realized as p-n junctions, they are ``on'' (conducting) when in forward bias and ``off'' (not conducting) when in reverse bias. The aforementioned threshold voltage is thus the built-in potential of the p-n junction, which is usually around 600-700 millivolts.
+
         \subsubsection{Envelope Detector}
         A diode followed by a low-pass filter (see Figure x) can be used as an \emph{envelope detector}, if the filter's time constant is chosen correctly. The envelope of a modulated high-frequency carrier signal is the smooth curve which outlines extremes in its amplitude. In the case of AM, the envelope is exactly the desired message signal to be recovered. The diode's rectifying ability turns the modulated carrier signal into a ``choppy'' version of the nonnegative message signal, and the low-pass filter rejects the high-frequency carrier signal, leaving the message signal to be recovered.
-    
+
     \subsection{Amplifiers}
     In general, a received FM signal will have lost some of its energy in transmission, thus we must be able to amplify it. However, many transistor amplifiers have large output impedances. This is a problem because we are dealing with audio signals, which means there will most likely be a speaker involved. Speakers have very low impedance, so cascading a high output impedance amplifier with a speaker will result in a highly attenuated signal being seen by the speaker. This can be seen from the voltage divider ratio -- if $R_1$ is large and $R_2$ is small, the input signal is attenuated. So, in addition to providing amplification, we must also take into consideration the output impedance of our amplifiers.
 
         \subsubsection{Gain Stage}
         To provide gain, we use the \emph{common emitter} amplifier topology (See Figure x). With resistive emitter degeneration, this amplifier has DC gain $A_{DC} = \frac{g_m R_C}{1 + g_m R_E}$. Placing a large capacitor in parallel with the degeneration resistor gives a high frequency gain of $A_v = g_m R_C$, because the capacitor shorts out the resistor at high frequencies.
-        
+
         \subsubsection{Follower}
         To match impedance, we cascade the common emitter with a \emph{common collector}, or \emph{emitter follower} (See Figure x). An amplifier with this topology has gain $A_v = \frac{g_m R_E}{1 + g_m R_E} \approx 1$, which means it acts as a buffer. Its output impedance is roughly $R_o \approx \frac{1}{g_m} \parallel R_E$, which is designed to be comparable to the low impedance of the load (speaker) in order to avoid loading effects. If we did not follow the common emitter with the emitter follower, the output impedance would be roughly $R_o \approx R_C$, in which case the signal seen by the speaker would be attenuated by a factor of $\frac{1}{R_C}$, hence the name emitter \emph{follower}.
 
@@ -132,5 +132,6 @@ In this section, we describe the tools and procedures used in the development of
 \section{Conclusion}
 
 \section{Acknowledgements}
+We would like to thank: Ma\"{i}ssa Salama and Kevin Yu for their help in carrying out the work described above; Baylee Bordwell and Garret ``Karto'' Keating for their assistance; and Aaron Parsons for providing the opportunity and facilities to perform these experiments.
 
 \end{document}
