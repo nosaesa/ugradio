@@ -113,7 +113,15 @@ In this section we discuss the verification and physical implementation of the t
         \label{dsbfilt}
     \end{figure}
     
-    
+    \noindent Figure~\ref{sbfreq} shows various power spectra: two signals with frequencies $v_{\text{sig}} = v_{\text{LO}} \pm \delta_f$ at the output of the digital DSB mixer; one at the output of the digital SSB mixer; and the individual components of the digital SSB mixer output ($I$, the \emph{in-phase} component, i.e. mixed with cosine; $Q$, the \emph{quadrature} component, i.e. mixed with sine). It is here that we see the difference between DSB and SSB mixing: whereas DSB mixing/down-conversion is performed by multiplying the signal by a single cosine and filtering, SSB mixing/down-conversion involves splitting the signal, multiplying by both cosine and sine to yield $I(t)$ and $Q(t)$ (respectively), composing a new signal $y(t) = I(t) + jQ(t)$, and then filtering. More formally, if the signal to be down-converted is $x(t)$, we have (in discrete time domain, after $x(t)$ has been sampled to yield $x[n]$)
+    \begin{flalign*}
+        I[n] &= \cos(\omega_0 n)x[n] \overset{\mathcal{F}}{\leftrightarrow} \frac{1}{2}(X(e^{j(\omega - \omega_0)}) + X(e^{j(\omega + \omega_0)}) \\
+        Q[n] &= \sin(\omega_0 n)x[n] \overset{\mathcal{F}}{\leftrightarrow} \frac{1}{2j}(X(e^{j(\omega - \omega_0)}) - X(e^{j(\omega + \omega_0)}) \\
+        Y(e^{j\omega}) &= I(n) + jQ(n) \\
+        &=  \frac{1}{2}(X(e^{j(\omega - \omega_0)}) + X(e^{j(\omega + \omega_0)}) + j\frac{1}{2j}(X(e^{j(\omega - \omega_0)}) - X(e^{j(\omega + \omega_0)}) \\
+        &= X(e^{j(\omega - \omega_0)}),
+    \end{flalign*}
+    and therefore we see SSB mixing yields the down-converted signal with much less spectral occupancy than DSB mixing. In Figure~\ref{sbfreq}, we see that the reconstructed SSB mixed signal only contains the USB of the $I$ and $Q$ signals. In Figure~\ref{ssbtime}, we see the real and imaginary parts ($I[n]$, $jQ[n]$) of the output SSB mixer and the filtered output.
 
     \begin{figure}[H]
         \centering
@@ -128,23 +136,77 @@ In this section we discuss the verification and physical implementation of the t
         \caption{Reconstructing a signal from the complex outputs of a SSB mixer.}
         \label{ssbtime}
     \end{figure}
+    
+    As mentioned about, SSB is more efficient than DSB -- there is less redundancy in the modulated signal, therefore it takes less transmitter power and occupies less spectral real estate (which is very expensive!). Another consideration is analog vs. digital. To understand the advantage of a digital implementation, we need to take a step back and look at the bigger picture. In a real communication system (see Figure~\ref{commsys}), our signal of interest $x(t)$ is actually an up-converted version of some message signal $m(t)$, i.e. $x(t) = m(t)\cos(\omega_0 t)$. We would then like to transmit $x(t)$ across some channel and down-convert it at the receiver to recover $m(t)$. As we've found in this lab, down-converting $x(t)$ means mixing with $\cos(\omega_0 t)$ then filtering. In an analog system, the LOs at the transmitter and receiver are implemented in hardware, and as one can imagine, it is hard to ensure these oscillators in separate locations are exactly in phase. We can model this problem by adding a phase shift $\phi$ to the receiver LO relative to the transmitter LO:
+    
+    \begin{figure}[H]
+        \centering
+            \includegraphics[width = \textwidth]{commsys.pdf}
+        \caption{A simplified DSB-AM communication system.}
+        \label{commsys}
+    \end{figure}
+    
+    Mathematically, we have
+    \begin{flalign*}
+        y(t) &= \cos(\omega_0 t + \phi)x(t) \\
+        &= \cos(\omega_0 t + \phi)\cos(\omega_0 t)m(t) \\
+        &= \frac{1}{2}(\cos(2\omega_0 t + \phi) + \cos(\phi))m(t),
+    \end{flalign*}
+    and after filtering out the sum frequency via an appropriately chosen filter $H(\omega)$, we have
+    \begin{flalign*}
+        y_f(t) &= \frac{cos(\phi)}{2}m(t).
+    \end{flalign*}
+    This is not the signal we are trying to recover! Since $\phi$ can be modeled as a random variable ($\phi\sim U[-\pi,\pi]$), the receiver will have a hard time determining what the message $m(t)$ actually is. Thus it is clear that a digital implementation of such a system is preferred, since the LO signals can be precisely generated in phase.
 
 
-    \subsection{Filtering \& Down-Conversion}
+    \subsection{Filtering}
+    The final stage in our digital down-conversion is the low-pass filter. As mentioned previously, we will design this filter $H$ in the frequency domain by specifying the desired frequency response $H_k$, then take an inverse DFT to find the time domain coefficients $h_n$ which we will convolve our input signals with to achieve the filtering. The desired frequency response in array form is
+    \begin{flalign*}
+        &\begin{bmatrix} H_0 & H_1 & H_2 & H_3 & H_4 & H_5 & H_6 & H_7 \end{bmatrix} = \\
+        &\begin{bmatrix} 1 & 1 & 1 & 0 & 0 & 0 & 1 & 1 \end{bmatrix},
+    \end{flalign*}
+    and via Python's \texttt{fft} module, we see that the necessary coefficients are
+    \begin{flalign*}
+        &\begin{bmatrix} h_0 & h_1 & h_2 & h_3 & h_4 & h_5 & h_6 & h_7 \end{bmatrix} = \\
+        &\begin{bmatrix} 0.625 & 0.3017767 & -0.125 & -0.0517767 & 0.125 & -0.0517767 & -0.125 & 0.3017767 \end{bmatrix}.
+    \end{flalign*}
+    
+    \noindent The FPGA which will implement our filter needs the coefficients to be written as fixed-point numbers. Assuming that software registers will be interpreted on the FPGA as 18-bit signed integers with 17 bits after the binary point, we have: \\
+    \\
+    \begin{center}
+        \begin{tabular}{| l || l|}
+            \hline
+            Coefficient & Fixed-Point Representation \\ \hline
+            $h_0$ & 0.10100000000000000 \\
+            $h_1$ & 0.01001101010000010 \\
+            $h_2$ & 1.11100000000000000 \\
+            $h_3$ & 1.11110010101111110 \\
+            $h_4$ & 0.00100000000000000 \\
+            $h_5$ & 1.11110010101111110 \\
+            $h_6$ & 1.11100000000000000 \\
+            $h_7$ & 0.01001101010000010 \\
+            \hline
+        \end{tabular}
+    \end{center}
 
+    We then implement this filter on the FPGA and determine the actual shape of the filter empirically. This is done by inputting a series of sinusoids at different frequencies and measuring the gain of the filter at each frequency. By definition, this is measuring the frequency response of the filter.  Figure~\ref{filter} shows the samples of the frequency response determined empirically in addition to the calculated frequency response of the zero-padded coefficients and the ideal filter:
+    
+    \noindent 
     \begin{figure}[H]
         \centering
             \includegraphics[width = \textwidth]{3_2_1_filter.png}
         \caption{Comparison of ideal, computed, and empirically determined filter shapes.}
         \label{filter}
     \end{figure}
+    
+    
 
 
 \section{Results \& Discussion}
 
 
 \section{Conclusion}
-This lab proved to be very challenging and very rewarding. Radio is a fascinating topic and it was quite satisfying to design and build an FM receiver from the ground up. However, we do realize the shortcomings of such a simple design, and we look forward to revisiting the issue of receiving RF signals with more advanced equipment in the next lab.
+
 
 \section{Acknowledgements}
 We would like to thank: Isaac Domagalski and Eduardo Herrera for their help in carrying out the work described above; Baylee Bordwell and Garret ``Karto'' Keating for their assistance; and Aaron Parsons for providing the opportunity and facilities necessary to perform these experiments.
