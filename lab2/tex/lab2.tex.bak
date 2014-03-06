@@ -1,0 +1,147 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,textcomp,amssymb,geometry,graphicx,enumerate,float,mathrsfs}
+\graphicspath{{../figures/}}
+
+\def\Name{Jeff Lievense}  % Your name
+\def\HW{2} % Homework number
+
+\title{Astronomy 121 -- Spring 2014}
+\author{\Name}
+\markboth{Astronomy 121 -- Spring 2014, Lab \HW, \Name}{Astronomy 121 -- Spring 2014, Lab \HW, \Name}
+\pagestyle{myheadings}
+
+\begin{document}
+\maketitle
+\begin{center}
+{\LARGE {\bf Lab \HW \\~\\ Sampling, Fourier Transforms, Mixers, and Down-Converters}} \\
+~\\
+~\\
+~\\
+~\\
+~\\
+~\\
+~\\
+\end{center}
+
+\begin{abstract}
+    In this report, we develop the necessary theory and tools for designing and implementing digital down-conversion systems. Digital sampling of analog signals is explored, and the Nyquist criterion is established. The spectra of mixed signals are described, and tradeoffs between single- and double-sideband modulation schemes are discussed. We then consider the role of filters in down-conversion and present a simple implementation of an FIR filter on an FPGA.
+\end{abstract}
+
+\newpage
+
+\section{Introduction}
+In order to use digital signal processing (DSP) techniques to manipulate modulated signals, we must understand the effects of quantizing analog signals and mixing in both time and frequency domains. This involves: understanding how and under what conditions we can sample analog signals; what kind of mixing schemes exist and how we can use DSP to shift desired information to baseband; and how to ensure that we are isolating the desired information, i.e. rejecting useless information that results from mixing. In this lab, we hope to gain a strong understanding of DSP that can be later used in the measurement of the 21-cm line of interstellar atomic hydrogen.
+
+    \subsection{Document Map}
+    \begin{itemize}
+        \item
+            Section 2 discusses necessary background theory.
+        \item
+            Section 3 describes experimental work carried out in the lab.
+        \item
+            Sections 4 and 5 discuss the results of our experiments and their consequences.
+    \end{itemize}
+
+\section{Theory}
+In this section, we discuss the theory used in the development of our system.
+
+    \subsection{Sampling}
+    In its most basic form, the Nyquist-Shannon \footnote{http://en.wikipedia.org/wiki/Nyquist\%E2\%80\%93Shannon\_sampling\_theorem\#Why\_Nyquist.3F} sampling theorem states that, if a function $x(t)$ contains no frequencies higher than $B$ hertz, it is completely determined by giving its ordinates at a series of points spaced $\frac{1}{2B}$ seconds apart. In layman's terms, this means that we lose no information in sampling an analog signal if the sampling rate is at least twice the highest frequency present in the signal. This can be seen via a graphical ``proof'' in the frequency domain by looking at sampling as multiplication in time by a Dirac delta train. For those with a taste for linear algebra, it can be shown that bandlimited signals form a subspace of $\mathscr{L}_2(\mathbb{R})$, and we can view sampling mathematically as the projection of a signal onto this space. It can also be shown that the basis for this subspace is a family of sinc functions, and thus we are provided with some insight into the Whittaker-Shannon interpolation formula. \footnote{http://en.wikipedia.org/wiki/Whittaker\%E2\%80\%93Shannon\_interpolation\_formula}
+    \\
+    \\
+    \noindent What occurs as a result of sampling below the Nyquist rate is known as \emph{aliasing}. In general, aliasing describes high-frequency information bleeding into lower frequencies. As we will see in Section 3, when sampling a single sinusoid, aliasing results in the sinusoid becoming indistinguishable from lower frequency sinusoids. This of course is a very undesirable property in a down-conversion system, therefore we must pay careful attention to the bandlimited-ness of our signals and how we sample them.
+
+    \subsection{Mixing}
+    In general, mixing refers to multiplication of a signal by a sinusoid in order to shift its spectrum from one frequency range to another. This process is also known as \emph{heterodyning}. In this lab, we are interested in mixing for its use in \emph{down-conversion}, that is, shifting some signal of interest from a high frequency range a lower intermediate frequency range (IF) or baseband (low frequency, centered around DC). \\
+    \\
+    In the ideal mathematical case, mixing a signal with a complex exponential shifts the signal's spectrum to be centered around the frequency of the complex exponential. This can be seen via the \emph{modulation property} (a result of the \emph{Convolution Theorem}) of the Fourier transform:
+    \begin{flalign*}
+        x(t)e^{j\omega_0 t} &\overset{\mathcal{F}}{\leftrightarrow} X(j(\omega - \omega_0)),
+    \end{flalign*}
+    where $x(t)$ is the signal of interest, $X(j\omega)$ is its spectrum, and $\mathcal{F}$ denotes a Fourier transform pair. Unfortunately, complex exponentials cannot be generated in hardware for actual mixing purposes, so the mixing sinusoid is more often a cosine. In this case, the spectrum of $x(t)$ is shifted both positive and negative frequencies. Using the Fourier series expansion $\cos(\omega_0 t) = \frac{1}{2}e^{j\omega_0 t} + \frac{1}{2}e^{-j\omega_0 t}$ and the linearity of the Fourier transform, we see that
+    \begin{flalign*}
+        x(t)\cos(\omega_0 t) &\overset{\mathcal{F}}{\leftrightarrow} \frac{1}{2}X(j(\omega - \omega_0)) + \frac{1}{2}X(j(\omega + \omega_0)).
+    \end{flalign*}
+    This kind of modulation is known as \emph{double-sideband modulation}. We note that there is redundancy in the modulated signal -- provided that $\omega_0$ is large enough to prevent aliasing, $X(j\omega)$ occurs twice in the above expression! To save transmission power and frequency occupancy (bandwidth), \emph{single-sideband modulation} can be used instead. This concept will be explored in Section 3.
+
+    \subsection{Down-Conversion}
+    As mentioned above, our ultimate goal in this lab is to design a \emph{down-conversion} system. This entails extracting information from a modulated signal by shifting the spectrum down to baseband and removing high frequency artifacts left over from mixing (namely the sum frequency), thus we require the use of a low-pass filter. The theory of analog filters was described in the last lab, but we are now interesting in performing filtering digitally. To accomplish this, we will design filters by specifying their frequency response, then determining the necessary impulse response by taking an inverse discrete Fourier transform (DFT). The nonzero values of the impulse response will hence be referred to as the \emph{filter coefficients} which can be used to filter a signal via convolution. Since convolution consists of basic operations (multiplying, adding, shifting), we can efficiently implement our desired filter on an \emph{field programmable gate array} (FPGA).
+
+\section{Methods}
+In this section we discuss the verification and physical implementation of the theory discussed above.
+
+\begin{figure}[H]
+    \centering
+        \includegraphics[width = \textwidth]{down-converter.pdf}
+    \caption{Overall digital down-converter system.}
+    \label{bd}
+\end{figure}
+
+    \subsection{Overview}
+    We are interested in combining the concepts discussed in previous sections in order to realize a complete digital down-conversion system. Figure~\ref{bd} presents a block diagram of what our circuit should do:
+    \begin{itemize}
+        \item Sampling
+        \item Mixing
+        \item Filtering
+    \end{itemize}
+
+    \subsection{Observing the Nyquist Criterion}
+    To solidify our understanding of the sampling theorem, we consider the following system, where the continuous time signal $x(t) = \cos(2\pi v_{sig})$ is sampled with sampling period $T = \frac{1}{v_{smpl}}$ to yield the discrete time signal $x[n]$:
+    \begin{figure}[H]
+        \centering
+            \includegraphics[width = \textwidth]{sampler.pdf}
+        \caption{A sampler with sampling period $T$ and sampling rate $v_{smpl}$.}
+    \end{figure}
+    
+    \begin{figure}[H]
+        \centering
+            \includegraphics[width = \textwidth]{1_3_sampling.png}
+        \caption{Sampling a sinusoid below, at, and above the Nyquist rate.}
+        \label{nyquist}
+    \end{figure}
+
+
+    \subsection{Mixing \& Sidebands}
+
+    \begin{figure}[H]
+        \centering
+            \includegraphics[width = \textwidth]{2_1_2_filtering.png}
+        \caption{DSB power spectra and filtered mixer output.}
+        \label{dsbfilt}
+    \end{figure}
+
+    \begin{figure}[H]
+        \centering
+            \includegraphics[width = \textwidth]{2_2_2_dsb_ssb_freq.png}
+        \caption{DSB and SSB power spectra.}
+        \label{sbfreq}
+    \end{figure}
+
+    \begin{figure}[H]
+        \centering
+            \includegraphics[width = \textwidth]{2_2_2_ssb_time.png}
+        \caption{Reconstructing a signal from the complex outputs of a SSB mixer.}
+        \label{ssbtime}
+    \end{figure}
+
+
+    \subsection{Filtering \& Down-Conversion}
+
+    \begin{figure}[H]
+        \centering
+            \includegraphics[width = \textwidth]{3_2_1_filter.png}
+        \caption{Comparison of ideal, computed, and empirically determined filter shapes.}
+        \label{filter}
+    \end{figure}
+
+
+\section{Results \& Discussion}
+
+
+\section{Conclusion}
+This lab proved to be very challenging and very rewarding. Radio is a fascinating topic and it was quite satisfying to design and build an FM receiver from the ground up. However, we do realize the shortcomings of such a simple design, and we look forward to revisiting the issue of receiving RF signals with more advanced equipment in the next lab.
+
+\section{Acknowledgements}
+We would like to thank: Isaac Domagalski and Eduardo Herrera for their help in carrying out the work described above; Baylee Bordwell and Garret ``Karto'' Keating for their assistance; and Aaron Parsons for providing the opportunity and facilities necessary to perform these experiments.
+
+\end{document}
