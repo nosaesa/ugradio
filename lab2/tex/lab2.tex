@@ -49,23 +49,29 @@ In this section, we discuss the theory used in the development of our system.
     In its most basic form, the Nyquist-Shannon \footnote{http://en.wikipedia.org/wiki/Nyquist\%E2\%80\%93Shannon\_sampling\_theorem\#Why\_Nyquist.3F} sampling theorem states that, if a function $x(t)$ contains no frequencies higher than $B$ hertz, it is completely determined by giving its ordinates at a series of points spaced $\frac{1}{2B}$ seconds apart. In layman's terms, this means that we lose no information in sampling an analog signal if the sampling rate is at least twice the highest frequency present in the signal. This can be seen via a graphical ``proof'' in the frequency domain by looking at sampling as multiplication in time by a Dirac delta train. For those with a taste for linear algebra, it can be shown that bandlimited signals form a subspace of $\mathscr{L}_2(\mathbb{R})$, and we can view sampling mathematically as the projection of a signal onto this space. It can also be shown that the basis for this subspace is a family of sinc functions, and thus we are provided with some insight into the Whittaker-Shannon interpolation formula. \footnote{http://en.wikipedia.org/wiki/Whittaker\%E2\%80\%93Shannon\_interpolation\_formula}
     \\
     \\
-    \noindent What occurs as a result of sampling below the Nyquist rate is known as \emph{aliasing}. In general, aliasing describes high-frequency information bleeding into lower frequencies. As we will see in Section 3, when sampling a single sinusoid, aliasing results in the sinusoid becoming indistinguishable from lower frequency sinusoids. This of course is a very undesirable property in a down-conversion system, therefore we must pay careful attention to the bandlimited-ness of our signals and how we sample them.
+    \noindent What occurs as a result of sampling below the Nyquist rate is known as \emph{aliasing}. In general, aliasing describes high-frequency information bleeding into lower frequencies. As we will see in Section 3, when sampling a single sinusoid, aliasing results in the sinusoid becoming indistinguishable from a lower frequency sinusoid. This of course is a very undesirable property in a down-conversion system, therefore we must pay careful attention to the bandlimited-ness of our signals and how we sample them.
 
     \subsection{Mixing}
-    In general, mixing refers to multiplication of a signal by a sinusoid in order to shift its spectrum from one frequency range to another. This process is also known as \emph{heterodyning}. In this lab, we are interested in mixing for its use in \emph{down-conversion}, that is, shifting some signal of interest from a high frequency range a lower intermediate frequency range (IF) or baseband (low frequency, centered around DC). \\
+    In general, mixing refers to multiplication of a signal by a sinusoid in order to shift its spectrum from one frequency range to another. This process is also known as \emph{heterodyning}. In this lab, we are interested in mixing for its use in \emph{down-conversion}, that is, shifting some signal of interest from a high frequency range a lower intermediate frequency range (IF) or baseband (low frequency, centered around DC). Let's say we're interested in down-converting some signal of interest $x(t)$ that has information at high frequencies $\pm \omega_c$ (since we are supposing $x(t) \in \mathbb{R}$, its spectrum must be symmetric). We can then model $x(t)$ as some signal $m(t) \in \mathbb{R}$ whose spectrum is located at baseband that has been modulated by a high frequency sinusoid, i.e. $x(t) = m(t)\cos(\omega_c t)$. Down-conversion then becomes the process of trying to recover $m(t)$ from $x(t)$. \\
     \\
     In the ideal mathematical case, mixing a signal with a complex exponential shifts the signal's spectrum to be centered around the frequency of the complex exponential. This can be seen via the \emph{modulation property} (a result of the \emph{Convolution Theorem}) of the Fourier transform:
     \begin{flalign*}
-        x(t)e^{j\omega_0 t} &\overset{\mathcal{F}}{\leftrightarrow} X(j(\omega - \omega_0)),
+        x(t)e^{-j\omega_0 t} &\overset{\mathcal{F}}{\leftrightarrow} X(j(\omega + \omega_0)),
     \end{flalign*}
-    where $x(t)$ is the signal of interest, $X(j\omega)$ is its spectrum, and $\mathcal{F}$ denotes a Fourier transform pair. Unfortunately, complex exponentials cannot be generated in hardware for actual mixing purposes, so the mixing sinusoid is more often a cosine. In this case, the spectrum of $x(t)$ is shifted both positive and negative frequencies. Using the Fourier series expansion $\cos(\omega_0 t) = \frac{1}{2}e^{j\omega_0 t} + \frac{1}{2}e^{-j\omega_0 t}$ and the linearity of the Fourier transform, we see that
+    where $X(j\omega)$ is the spectrum of $x(t)$, and $\mathcal{F}$ denotes a Fourier transform pair. Unfortunately, complex exponentials cannot be generated in hardware for actual mixing purposes, so the mixing sinusoid is more often a cosine. In this case, the spectrum of $x(t)$ is shifted both positive and negative frequencies. Using the Fourier series expansion $\cos(\omega_0 t) = \frac{1}{2}e^{j\omega_0 t} + \frac{1}{2}e^{-j\omega_0 t}$ and the linearity of the Fourier transform, we see that
     \begin{flalign*}
-        x(t)\cos(\omega_0 t) &\overset{\mathcal{F}}{\leftrightarrow} \frac{1}{2}X(j(\omega - \omega_0)) + \frac{1}{2}X(j(\omega + \omega_0)).
+        x(t)\cos(\omega_0 t) \overset{\mathcal{F}}{\leftrightarrow}& \frac{1}{2}X(j(\omega - \omega_0)) + \frac{1}{2}X(j(\omega + \omega_0)) \\
+        &= \frac{1}{2}(\frac{1}{2}M(j(\omega - (\omega_c + \omega_0)) + \frac{1}{2}M(j(\omega + (\omega_c - \omega _0))))) + \\
+         &~ \frac{1}{2}(\frac{1}{2}M(j(\omega - (\omega_c - \omega_0)) + \frac{1}{2}M(j(\omega + (\omega_c + \omega_0))))).
     \end{flalign*}
-    This kind of modulation is known as \emph{double-sideband modulation} (DSB). We note that there is redundancy in the modulated signal -- provided that $\omega_0$ is large enough to prevent aliasing, $X(j\omega)$ occurs twice in the above expression! To save transmission power and frequency occupancy (bandwidth), \emph{single-sideband modulation} (SSB) can be used instead. This concept will be explored in Section 3.
+    For simplicity, let's assume $\omega_0 = \omega_c$, then we have
+    \begin{flalign*}
+        \mathcal{F}\{x(t)\cos(\omega_0 t)\} &= \frac{1}{4}M(j(\omega - 2\omega_0) + \frac{1}{2}M(j\omega) + \frac{1}{4}M(j(\omega + 2\omega_0),
+    \end{flalign*}
+    and we see that $m(t)$ can be recovered by low-pass filtering out the sum frequencies. This method is known as \emph{double-sideband mixing} (DSB). Note that there is redundancy in the modulated signal -- provided that $\omega_0$ is large enough to prevent aliasing, $M(j\omega)$ can be recovered from one half of its spectrum (it is symmetric)! To save transmission power (in a two-way communication system) and frequency occupancy (bandwidth), \emph{single-sideband modulation} (SSB) can be used instead. This concept that exploits the symmetry of $M(j\omega)$ will be explored in Section 3.
 
     \subsection{Down-Conversion}
-    As mentioned above, our ultimate goal in this lab is to design a \emph{down-conversion} system. This entails extracting information from a modulated signal by shifting the spectrum down to baseband and removing high frequency artifacts left over from mixing (namely the sum frequency), thus we require the use of a low-pass filter. The theory of analog filters was described in the last lab, but we are now interesting in performing filtering digitally. To accomplish this, we will design filters by specifying their frequency response, then determining the necessary impulse response by taking an inverse discrete Fourier transform (DFT). The nonzero values of the impulse response will hence be referred to as the \emph{filter coefficients} which can be used to filter a signal via convolution. Since convolution consists of basic operations (multiplying, adding, shifting), we can efficiently implement our desired filter on an \emph{field programmable gate array} (FPGA).
+    As mentioned above, our ultimate goal in this lab is to design a \emph{down-conversion} system. This entails extracting information from a modulated signal by shifting the spectrum down to baseband and removing high frequency artifacts left over from mixing (namely the sum frequencies $\pm(\omega + \omega_0)$), thus we require the use of a low-pass filter. The theory of analog filters was described in the last lab, but we are now interesting in performing filtering digitally. To accomplish this, we will design filters by specifying their frequency response, then determining the necessary impulse response by taking an inverse discrete Fourier transform (DFT). The nonzero values of the impulse response will hence be referred to as the \emph{filter coefficients} which can be used to filter a signal via convolution. Since convolution consists of basic operations (multiplying, adding, shifting), we can efficiently implement our desired filter on an \emph{field programmable gate array} (FPGA).
 
 \section{Methods}
 In this section we discuss the verification and physical implementation of the theory discussed above.
@@ -102,26 +108,27 @@ In this section we discuss the verification and physical implementation of the t
 
 
     \subsection{Mixing \& Sidebands}
-    We now investigate analog and digital mixers. In the lab, we have at our disposal an analog DSB mixer, a digital DSB mixer which multiplies a provided signal by a provided local oscillator (LO) signal, and a digital SSB mixer which multiplies a provided signal by an on-board LO signal.
-    
+    We now investigate analog and digital mixers. In the lab, we have at our disposal an analog DSB mixer, a digital DSB mixer which multiplies a provided signal by a provided local oscillator (LO) signal, and a digital SSB mixer which multiplies a provided signal by an on-board LO signal.\\
+    \\
     \noindent Figure~\ref{dsbfilt} shows the power spectra of two signals, with frequencies $v_{\text{sig}} = v_{\text{LO}} \pm \delta_f$, at the output of the analog DSB mixer. Note that there is symmetry about the sum and difference frequencies: this is DSB modulation. The \emph{upper sideband} (USB, spectral content at frequencies with greater magnitude than the carrier) and \emph{lower sideband} (LSB, spectral content at frequencies with lesser magnitude than the carrier) are mirror images of each other. Additionally shown is the output waveform for $\delta_f = .05\cdot v_{\text{LO}}$. We are interested in the low frequency signal which is clearly present, but is corrupt with a high frequency (the sum frequency) signal. To solve this, we use a digital low-pass filter to remove the sum frequencies by zeroing out the high frequency DFT coefficients of the signal. The result is shown next to the original output, and we see the low frequency signal in its unaltered state.
-    
+
     \begin{figure}[H]
         \centering
             \includegraphics[width = \textwidth]{2_1_2_filtering.png}
         \caption{DSB power spectra and filtered mixer output.}
         \label{dsbfilt}
     \end{figure}
-    
-    \noindent Figure~\ref{sbfreq} shows various power spectra: two signals with frequencies $v_{\text{sig}} = v_{\text{LO}} \pm \delta_f$ at the output of the digital DSB mixer; one at the output of the digital SSB mixer; and the individual components of the digital SSB mixer output ($I$, the \emph{in-phase} component, i.e. mixed with cosine; $Q$, the \emph{quadrature} component, i.e. mixed with sine). It is here that we see the difference between DSB and SSB mixing: whereas DSB mixing/down-conversion is performed by multiplying the signal by a single cosine and filtering, SSB mixing/down-conversion involves splitting the signal, multiplying by both cosine and sine to yield $I(t)$ and $Q(t)$ (respectively), composing a new signal $y(t) = I(t) + jQ(t)$, and then filtering. More formally, if the signal to be down-converted is $x(t)$, we have (in discrete time domain, after $x(t)$ has been sampled to yield $x[n]$)
+
+    \noindent Figure~\ref{sbfreq} shows various power spectra: two signals with frequencies $v_{\text{sig}} = v_{\text{LO}} \pm \delta_f$ at the output of the digital DSB mixer; one at the output of the digital SSB mixer; and the individual components of the digital SSB mixer output ($I$, the \emph{in-phase} component, i.e. mixed with cosine; $Q$, the \emph{quadrature} component, i.e. mixed with sine). It is here that we see the difference between DSB and SSB mixing: whereas DSB mixing/down-conversion is performed by multiplying the signal by a single cosine and filtering, SSB mixing/down-conversion involves splitting the signal, multiplying by both cosine and sine to yield $I(t)$ and $Q(t)$ (respectively), composing a new signal $y(t) = I(t) - jQ(t)$, and then filtering. More formally, if the signal to be down-converted is $x(t)$, we have (in discrete time domain, after $x(t)$ has been sampled to yield $x[n]$)
     \begin{flalign*}
-        I[n] &= \cos(\omega_0 n)x[n] \overset{\mathcal{F}}{\leftrightarrow} \frac{1}{2}(X(e^{j(\omega - \omega_0)}) + X(e^{j(\omega + \omega_0)}) \\
-        Q[n] &= \sin(\omega_0 n)x[n] \overset{\mathcal{F}}{\leftrightarrow} \frac{1}{2j}(X(e^{j(\omega - \omega_0)}) - X(e^{j(\omega + \omega_0)}) \\
-        Y(e^{j\omega}) &= I(n) + jQ(n) \\
-        &=  \frac{1}{2}(X(e^{j(\omega - \omega_0)}) + X(e^{j(\omega + \omega_0)}) + j\frac{1}{2j}(X(e^{j(\omega - \omega_0)}) - X(e^{j(\omega + \omega_0)}) \\
-        &= X(e^{j(\omega - \omega_0)}),
+        I[n] &= \cos(\omega_0 n)x[n] \overset{\mathcal{F}}{\leftrightarrow} \frac{1}{2}(X(e^{j(\omega - \omega_0)}) + X(e^{j(\omega + \omega_0)})) \\
+        Q[n] &= \sin(\omega_0 n)x[n] \overset{\mathcal{F}}{\leftrightarrow} \frac{1}{2j}(X(e^{j(\omega - \omega_0)}) - X(e^{j(\omega + \omega_0)})) \\
+        Y(e^{j\omega}) &= I[n] - jQ[n] \\
+        &=  \frac{1}{2}(X(e^{j(\omega - \omega_0)}) + X(e^{j(\omega + \omega_0)})) - j\frac{1}{2j}(X(e^{j(\omega - \omega_0)}) - X(e^{j(\omega + \omega_0)})) \\
+        &= X(e^{j(\omega + \omega_0)}) \\
+        &= \frac{1}{2}(M(j\omega) + M(j(\omega + 2\omega_0))).
     \end{flalign*}
-    and therefore we see SSB mixing yields the down-converted signal with much less spectral occupancy than DSB mixing. In Figure~\ref{sbfreq}, we see that the reconstructed SSB mixed signal only contains the USB of the $I$ and $Q$ signals. In Figure~\ref{ssbtime}, we see the real and imaginary parts ($I[n]$, $jQ[n]$) of the output SSB mixer and the filtered output.
+    This results in a complex valued signal $y[n]$ (since $Y(j\omega)$ is not symmetric), as seen in Figure~\ref{ssbtime}, and we see that the sum frequency is easily filtered out. In Figure~\ref{sbfreq}, we see that the reconstructed SSB mixed signal only contains the USB of the $I$ and $Q$ signals. In Figure~\ref{ssbtime}, we see the real and imaginary parts ($I[n]$, $Q[n]$) of the output SSB mixer and the filtered output.
 
     \begin{figure}[H]
         \centering
@@ -136,27 +143,29 @@ In this section we discuss the verification and physical implementation of the t
         \caption{Reconstructing a signal from the complex outputs of a SSB mixer.}
         \label{ssbtime}
     \end{figure}
-    
-    As mentioned about, SSB is more efficient than DSB -- there is less redundancy in the modulated signal, therefore it takes less transmitter power and occupies less spectral real estate (which is very expensive!). Another consideration is analog vs. digital. To understand the advantage of a digital implementation, we need to take a step back and look at the bigger picture. In a real communication system (see Figure~\ref{commsys}), our signal of interest $x(t)$ is actually an up-converted version of some message signal $m(t)$, i.e. $x(t) = m(t)\cos(\omega_0 t)$. We would then like to transmit $x(t)$ across some channel and down-convert it at the receiver to recover $m(t)$. As we've found in this lab, down-converting $x(t)$ means mixing with $\cos(\omega_0 t)$ then filtering. In an analog system, the LOs at the transmitter and receiver are implemented in hardware, and as one can imagine, it is hard to ensure these oscillators in separate locations are exactly in phase. We can model this problem by adding a phase shift $\phi$ to the receiver LO relative to the transmitter LO:
-    
-    \begin{figure}[H]
-        \centering
-            \includegraphics[width = \textwidth]{commsys.pdf}
-        \caption{A simplified DSB-AM communication system.}
-        \label{commsys}
-    \end{figure}
-    
-    Mathematically, we have
+
+    \noindent As mentioned about, SSB is more efficient than DSB -- there is less redundancy in the modulated signal, therefore it takes less transmitter power and occupies less spectral real estate (which is very expensive!). Another consideration is analog vs. digital. To understand the advantage of a digital implementation, we need to take a step back and look at the bigger picture. In a real, two-way communication system (see Figure~\ref{commsys}), our signal of interest $x(t)$, as mentioned before, is actually an up-converted version of some message signal $m(t)$, i.e. $x(t) = m(t)\cos(\omega_c t)$. We would then like to transmit $x(t)$ across some channel and down-convert it at the receiver to recover $m(t)$. As we've found in this lab, down-converting $x(t)$ means SSB-mixing with $\cos(\omega_0 t)$ then filtering. In an analog system, the LOs at the transmitter and receiver are implemented in hardware, and as one can imagine, it is hard to ensure these oscillators in separate locations are exactly in phase. We can model this problem by adding a phase shift $\phi$ to the receiver LO relative to the transmitter LO. Mathematically, before filtering, we have
     \begin{flalign*}
-        y(t) &= \cos(\omega_0 t + \phi)x(t) \\
-        &= \cos(\omega_0 t + \phi)\cos(\omega_0 t)m(t) \\
-        &= \frac{1}{2}(\cos(2\omega_0 t + \phi) + \cos(\phi))m(t),
+        y(t) &= \cos(\omega_0 t)x(t) + j\sin(\omega_0 t)x(t) \\
+        &\overset{\mathcal{F}}{\leftrightarrow} \frac{1}{2}(X(j(\omega - \omega_0) + X(j\omega( + \omega_0))) + \frac{e^{j\phi}}{2}X(j(\omega - \omega_0)) - \frac{e^{-j\phi}}{2}X(j(\omega + \omega_0)) \\
+        &= \frac{1}{2}(X(j(\omega - \omega_0))(1 + e^{j\phi}) + X(j(\omega + \omega_0)(1 - e^{-j\phi}))).
+    \end{flalign*}
+    Again, assuming $\omega_0 = \omega_c$ for simplicity, we have
+    \begin{flalign*}
+        Y(j\omega) &= \frac{1}{4}(M(j(\omega - 2\omega_0))(1 + e^{j\phi}) + M(j\omega)(2 + e^{j\phi} - e^{-j\phi}) + M(j(\omega + 2\omega_0))(1 - e^{-j\phi}))),
     \end{flalign*}
     and after filtering out the sum frequency via an appropriately chosen filter $H(\omega)$, we have
     \begin{flalign*}
-        y_f(t) &= \frac{cos(\phi)}{2}m(t).
+        y_f(t) &= \frac{1}{4}m(t)(2 + e^{j\phi} - e^{-j\phi}).
     \end{flalign*}
-    This is not the signal we are trying to recover! Since $\phi$ can be modeled as a random variable ($\phi\sim U[-\pi,\pi]$), the receiver will have a hard time determining what the message $m(t)$ actually is. Thus it is clear that a digital implementation of such a system is preferred, since the LO signals can be precisely generated in phase.
+    This is not the signal we are trying to recover! Since $\phi$ can be modeled as a random variable ($\phi\sim U[-\pi,\pi]$), the receiver will have a hard time determining what the message $m(t) \in \mathbb{R}$ actually is -- in fact, this phase-corrupted signal is not even real! Thus we see why a digital implementation of such a system may be preferred, since the LO signals can be precisely generated to be in-phase. However, analog does have its advantages: in especially high frequency applications, it is not cheap to run the front-end A/D converter (i.e. to sample the received analog waveform at very high frequencies so it can be digitally down-converted). In such situations, it may be preferred to perform analog down-conversion, where the signal of interest is shifted to a lower frequency before being sampled, thus requiring a much lower sampling rate.
+
+    \begin{figure}[H]
+        \centering
+            \includegraphics[width = \textwidth]{commsys.pdf}
+        \caption{A simplified SSB-AM communication system.}
+        \label{commsys}
+    \end{figure}
 
 
     \subsection{Filtering}
@@ -170,7 +179,7 @@ In this section we discuss the verification and physical implementation of the t
         &\begin{bmatrix} h_0 & h_1 & h_2 & h_3 & h_4 & h_5 & h_6 & h_7 \end{bmatrix} = \\
         &\begin{bmatrix} 0.625 & 0.3017767 & -0.125 & -0.0517767 & 0.125 & -0.0517767 & -0.125 & 0.3017767 \end{bmatrix}.
     \end{flalign*}
-    
+
     \noindent The FPGA which will implement our filter needs the coefficients to be written as fixed-point numbers. Assuming that software registers will be interpreted on the FPGA as 18-bit signed integers with 17 bits after the binary point, we have: \\
     \\
     \begin{center}
@@ -189,24 +198,25 @@ In this section we discuss the verification and physical implementation of the t
         \end{tabular}
     \end{center}
 
-    We then implement this filter on the FPGA and determine the actual shape of the filter empirically. This is done by inputting a series of sinusoids at different frequencies and measuring the gain of the filter at each frequency. By definition, this is measuring the frequency response of the filter.  Figure~\ref{filter} shows the samples of the frequency response determined empirically in addition to the calculated frequency response of the zero-padded coefficients and the ideal filter:
-    
-    \noindent 
+    Note that the order in which we write the coefficients to the registers does not matter. Normally we would need to write them in backwards order, but since they are symmetric, backwards and forwards are the same. We then implement this filter on the FPGA and determine the actual shape of the filter empirically. This is done by inputting a series of sinusoids at different frequencies and measuring the gain of the filter at each frequency. By definition, this is measuring the frequency response of the filter.  Figure~\ref{filter} shows the samples of the frequency response determined empirically in addition to the calculated frequency response of the zero-padded coefficients and the ideal filter:
+
     \begin{figure}[H]
         \centering
             \includegraphics[width = \textwidth]{3_2_1_filter.png}
         \caption{Comparison of ideal, computed, and empirically determined filter shapes.}
         \label{filter}
     \end{figure}
-    
-    
 
+    \noindent From the figure, we see that the implemented filter does a nice job of approximating the expected shape of the desired filter. The five evenly-spaced samples around the zero-frequency are of unit magnitude (as in the ideal case), but there is significant ripple in the filter. Unfortunately, this cannot be avoided. Since we are implementing an FIR filter, we cannot achieve perfectly flat passband and stopband, and there must be some nonzero transition band between the passband and stopband. This is a result of the \emph{time-frequency uncertainty principle}, which tells us, in a loose sense, that we cannot have finite support in both time and frequency. Since the impulse response has finite support, the frequency response will never achieve the ideal shape. While it's true that we did specify an ideal 8-point box filter at first, we then zero padded the impulse response, which in turn interpolated the frequency response, revealing the ripples between the 8 samples we originally specified.
 
 \section{Results \& Discussion}
 
+Upon construction of our Digital Down-Converter, we were successfully able to shift a sinusoid down to a lower frequency. While it was difficult learning the subtleties of the ROACH, it was very satisfying to see our system in action. \\
+\\
+All code can be found at \texttt{https://github.com/nosaesa/ugradio/tree/master/lab2}.
 
 \section{Conclusion}
-
+This lab proved to be very challenging and very rewarding. DSP is a fascinating topic and it was quite fun to design and build a Digital Down-Converter from the ground up. However, we do realize the shortcomings of such a simple design, and we look forward to revisiting the concepts introduced in this lab with the goal of designing a more sophisticated system.
 
 \section{Acknowledgements}
 We would like to thank: Isaac Domagalski and Eduardo Herrera for their help in carrying out the work described above; Baylee Bordwell and Garret ``Karto'' Keating for their assistance; and Aaron Parsons for providing the opportunity and facilities necessary to perform these experiments.
